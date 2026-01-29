@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cortisol & SED : Guide Interactif</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Custom styles for specific interactive elements */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #fdfbf7; /* Warm neutral background */
+            color: #4a4a4a;
+        }
+        
+        /* Chart Container Styling Rules */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+
+        /* Breathing Canvas */
+        #breathingCanvas {
+            display: block;
+            margin: 0 auto;
+            border-radius: 50%;
+            background-color: #f3f4f6;
+        }
+
+        /* Smooth transitions */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .active-tab {
+            border-bottom: 3px solid #d97706; /* Amber-600 */
+            color: #d97706;
+            font-weight: bold;
+        }
+    </style>
+    <!-- Chosen Palette: Warm Neutrals & Earth Tones (Background: #fdfbf7, Accents: #d97706 (Amber), #57534e (Stone), #78716c (Warm Gray)) -->
+    <!-- Application Structure Plan:
+         1. Header & Context: Brief intro to the SED/Cortisol link.
+         2. Interactive Symptom Checker (Goal: Compare/Diagnose): Allows user to toggle between "Excess" and "Crash" states to get immediate, targeted advice based on the source table.
+         3. Dynamic Daily Routine (Goal: Inform/Guide): A tabbed timeline (Morning, Noon, Afternoon, Evening) presenting the schedule, food, and supplements interactively.
+         4. Cortisol Cycle Visualization (Goal: Inform): A chart showing the theoretical difference between healthy cortisol and SED dysregulation to explain the "why".
+         5. Nutrition Explorer (Goal: Organize): Cards for bread alternatives and key nutrients.
+         6. Practical Tools (Goal: Action): A real-time Canvas-based breathing guide for cardiac coherence (5-5-5).
+    -->
+    <!-- Visualization & Content Choices:
+         - Chart.js Line Chart: To visualize the "Tired but Wired" vs "Healthy" cortisol curves.
+         - Interactive Tabs/Cards: To break down the dense daily routine text into digestible chunks.
+         - Canvas Animation: For the breathing exercise, providing a visual cue for the user to follow immediately.
+         - Confirmation: NO SVG graphics used. NO Mermaid JS used.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Navigation / Header -->
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-5xl mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-stone-700">🦓 Cortisol & SED</h1>
+            <nav class="hidden md:flex space-x-6">
+                <a href="#comprendre" class="text-stone-600 hover:text-amber-600 transition">Comprendre</a>
+                <a href="#checkup" class="text-stone-600 hover:text-amber-600 transition">Mon État</a>
+                <a href="#routine" class="text-stone-600 hover:text-amber-600 transition">Routine</a>
+                <a href="#outils" class="text-stone-600 hover:text-amber-600 transition">Outils</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="flex-grow container mx-auto px-4 py-8 max-w-5xl space-y-12">
+
+        <!-- Intro Section -->
+        <section id="comprendre" class="text-center space-y-4">
+            <h2 class="text-3xl md:text-4xl font-extrabold text-stone-800">Gérer l'Énergie du Zèbre</h2>
+            <p class="text-lg text-stone-600 max-w-3xl mx-auto leading-relaxed">
+                Dans le Syndrome d'Ehlers-Danlos (SED), le corps subit un "stress structurel" permanent. 
+                L'instabilité et la dysautonomie forcent vos surrénales à compenser. 
+                Ce guide interactif vous aide à naviguer entre l'hyper-vigilance et l'épuisement.
+            </p>
+            
+            <!-- Contextual Chart: Why does this matter? -->
+            <div class="bg-white p-6 rounded-xl shadow-md border border-stone-100 mt-8">
+                <div class="mb-4 text-left">
+                    <h3 class="text-xl font-bold text-stone-700">Le Cycle du Cortisol : Théorie vs Réalité SED</h3>
+                    <p class="text-sm text-stone-500">Ce graphique illustre pourquoi vous ressentez ces symptômes. Le but est de lisser la courbe rouge pour se rapprocher de la bleue.</p>
+                </div>
+                <div class="chart-container">
+                    <canvas id="cortisolChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Interactive Symptom Checker (Auto-Evaluation) -->
+        <section id="checkup" class="bg-stone-50 rounded-2xl p-6 md:p-10 border border-stone-200">
+            <div class="mb-6">
+                <h3 class="text-2xl font-bold text-stone-800">🌡️ Auto-Évaluation : Comment vous sentez-vous ?</h3>
+                <p class="text-stone-600 mt-2">Identifiez votre état actuel pour obtenir la stratégie immédiate adaptée.</p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-4 mb-6">
+                <button id="btn-excess" class="p-4 rounded-xl border-2 border-amber-200 bg-white hover:bg-amber-50 transition text-left group focus:outline-none focus:ring-2 focus:ring-amber-400">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-lg text-stone-800">⚡ Je me sens "Électrique"</span>
+                        <span class="text-2xl group-hover:scale-110 transition">🤯</span>
+                    </div>
+                    <p class="text-sm text-stone-500 mt-2">Tachycardie, anxiété, impossible de dormir, muscles tendus.</p>
+                </button>
+
+                <button id="btn-crash" class="p-4 rounded-xl border-2 border-blue-200 bg-white hover:bg-blue-50 transition text-left group focus:outline-none focus:ring-2 focus:ring-blue-400">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-lg text-stone-800">🔋 Je suis en "Crash"</span>
+                        <span class="text-2xl group-hover:scale-110 transition">🪫</span>
+                    </div>
+                    <p class="text-sm text-stone-500 mt-2">Vertiges, froid, fatigue écrasante, envie de sel.</p>
+                </button>
+            </div>
+
+            <!-- Dynamic Result Area -->
+            <div id="checkup-result" class="hidden bg-white rounded-xl p-6 shadow-sm border-l-4 border-amber-500 fade-in">
+                <h4 id="result-title" class="text-xl font-bold text-amber-700 mb-3">Action Prioritaire</h4>
+                <div id="result-content" class="text-stone-700 space-y-2">
+                    <!-- JS will populate this -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Daily Routine Timeline -->
+        <section id="routine">
+            <div class="mb-6">
+                <h3 class="text-2xl font-bold text-stone-800">📅 Votre Programme "Anti-Crash"</h3>
+                <p class="text-stone-600 mt-2">Une journée type optimisée pour stabiliser votre énergie. Cliquez sur les moments de la journée pour voir les détails.</p>
+            </div>
+
+            <!-- Tabs -->
+            <div class="flex border-b border-stone-200 overflow-x-auto">
+                <button class="tab-btn px-6 py-3 text-stone-500 hover:text-stone-800 focus:outline-none whitespace-nowrap active-tab" data-target="matin">🌅 Matin (07h-09h)</button>
+                <button class="tab-btn px-6 py-3 text-stone-500 hover:text-stone-800 focus:outline-none whitespace-nowrap" data-target="midi">☀️ Midi (12h-14h)</button>
+                <button class="tab-btn px-6 py-3 text-stone-500 hover:text-stone-800 focus:outline-none whitespace-nowrap" data-target="apresmidi">🌆 Après-midi (15h-18h)</button>
+                <button class="tab-btn px-6 py-3 text-stone-500 hover:text-stone-800 focus:outline-none whitespace-nowrap" data-target="soir">🌙 Soir (19h-22h)</button>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="bg-white rounded-b-2xl shadow-sm border border-t-0 border-stone-200 p-6 md:p-8 min-h-[300px]">
+                
+                <!-- Morning Content -->
+                <div id="content-matin" class="tab-content fade-in space-y-6">
+                    <div class="flex items-start gap-4">
+                        <div class="bg-amber-100 text-amber-800 p-2 rounded-lg text-2xl">💧</div>
+                        <div>
+                            <h4 class="font-bold text-lg text-stone-800">Hydratation d'Urgence</h4>
+                            <p class="text-stone-600">500ml d'eau + pincée de sel marin (ou électrolytes) <strong>avant</strong> de sortir du lit. Vital pour contrer la chute de tension (POTS).</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-4">
+                        <div class="bg-orange-100 text-orange-800 p-2 rounded-lg text-2xl">🍳</div>
+                        <div>
+                            <h4 class="font-bold text-lg text-stone-800">Petit-Déjeuner Salé & Protéiné</h4>
+                            <p class="text-stone-600">Œufs, avocat, amandes. Éviter le sucre rapide.</p>
+                            <p class="text-sm text-stone-500 mt-1"><em>Option glucides : Pain au levain ou Avoine trempée la veille.</em></p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-4">
+                        <div class="bg-blue-100 text-blue-800 p-2 rounded-lg text-2xl">💊</div>
+                        <div>
+                            <h4 class="font-bold text-lg text-stone-800">Suppléments</h4>
+                            <p class="text-stone-600">500mg Vitamine C + Magnésium.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Noon Content -->
+                <div id="content-midi" class="tab-content hidden fade-in space-y-6">
+                    <div class="flex items-start gap-4">
+                        <div class="bg-green-100 text-green-800 p-2 rounded-lg text-2xl">🥗</div>
+                        <div>
+                            <h4 class="font-bold text-lg text-stone-800">Déjeuner Soutien</h4>
+                            <p class="text-stone-600">Protéines + Bonnes graisses + Légumes. Évitez le dessert sucré immédiat.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-4">
+                        <div class="bg-blue-100 text-blue-800 p-2 rounded-lg text-2xl">💊</div>
+                        <div>
+                            <h4 class="font-bold text-lg text-stone-800">Suppléments</h4>
+                            <p class="text-stone-600">2ème prise : 500mg Vitamine C.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-4">
+                        <div class="bg-purple-100 text-purple-800 p-2 rounded-lg text-2xl">🧘</div>
+                        <div>
+                            <h4 class="font-bold text-lg text-stone-800">Le "Reset"</h4>
+                            <p class="text-stone-600">15 min de repos horizontal complet + 5 min de cohérence cardiaque (voir section Outils).</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Afternoon Content -->
+                <div id="content-apresmidi" class="tab-content hidden fade-in space-y-6">
+                    <div class="flex items-start gap-4">
+                        <div class="bg-red-100 text-red-800 p-2 rounded-lg text-2xl">🛑</div>
+                        <div>
+                            <h4 class="font-bold text-lg text-stone-800">Pacing (Gestion de l'énergie)</h4>
+                            <p class="text-stone-600">Arrêtez-vous à 80% de votre fatigue. Si le "Brain Fog" (brouillard mental) arrive, allongez-vous immédiatement.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-4">
+                        <div class="bg-amber-100 text-amber-800 p-2 rounded-lg text-2xl">🍫</div>
+                        <div>
+                            <h4 class="font-bold text-lg text-stone-800">Collation</h4>
+                            <p class="text-stone-600">Chocolat noir (riche en magnésium) ou une poignée d'oléagineux.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Evening Content -->
+                <div id="content-soir" class="tab-content hidden fade-in space-y-6">
+                    <div class="flex items-start gap-4">
+                        <div class="bg-indigo-100 text-indigo-800 p-2 rounded-lg text-2xl">🍠</div>
+                        <div>
+                            <h4 class="font-bold text-lg text-stone-800">Dîner de Réparation</h4>
+                            <p class="text-stone-600">Inclure des glucides complexes (patate douce, riz) le soir. Ils favorisent la sérotonine et la baisse du cortisol.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-4">
+                        <div class="bg-blue-100 text-blue-800 p-2 rounded-lg text-2xl">💊</div>
+                        <div>
+                            <h4 class="font-bold text-lg text-stone-800">Suppléments</h4>
+                            <p class="text-stone-600">Magnésium (aide contre les contractures nocturnes).</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-4">
+                        <div class="bg-slate-100 text-slate-800 p-2 rounded-lg text-2xl">📵</div>
+                        <div>
+                            <h4 class="font-bold text-lg text-stone-800">Rituel Sommeil</h4>
+                            <p class="text-stone-600">Couper les écrans 1h avant. Douche tiède uniquement (le chaud dilate les vaisseaux et peut causer une tachycardie).</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Nutrition & Tools Grid -->
+        <div class="grid lg:grid-cols-2 gap-8">
+            
+            <!-- Nutrition Section -->
+            <section class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm">
+                <h3 class="text-2xl font-bold text-stone-800 mb-4">🥗 Nutrition Stratégique</h3>
+                
+                <div class="space-y-6">
+                    <div>
+                        <h4 class="font-bold text-amber-700 mb-2">Alternatives au Pain</h4>
+                        <div class="grid grid-cols-2 gap-2 text-sm">
+                            <div class="p-3 bg-stone-50 rounded border border-stone-100">
+                                <strong>Pain au Levain</strong><br>IG bas, minéraux dispos.
+                            </div>
+                            <div class="p-3 bg-stone-50 rounded border border-stone-100">
+                                <strong>Sarrasin</strong><br>Riche en rutine (vaisseaux).
+                            </div>
+                            <div class="p-3 bg-stone-50 rounded border border-stone-100">
+                                <strong>Pancakes Amande</strong><br>Stable pour la glycémie.
+                            </div>
+                            <div class="p-3 bg-stone-50 rounded border border-stone-100">
+                                <strong>Avoine Trempée</strong><br>Neutralise l'acide phytique.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="font-bold text-amber-700 mb-2">Le Trio Gagnant</h4>
+                        <ul class="space-y-2 text-stone-600">
+                            <li class="flex items-center gap-2">
+                                <span class="w-2 h-2 bg-orange-500 rounded-full"></span>
+                                <strong>Vitamine C (Liposomale) :</strong> Pour le collagène & surrénales.
+                            </li>
+                            <li class="flex items-center gap-2">
+                                <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
+                                <strong>Magnésium (Bisglycinate) :</strong> Douleur & stress nerveux.
+                            </li>
+                            <li class="flex items-center gap-2">
+                                <span class="w-2 h-2 bg-teal-500 rounded-full"></span>
+                                <strong>Sel :</strong> Maintien du volume sanguin (POTS).
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tools Section: Breathing App -->
+            <section id="outils" class="bg-stone-800 text-white rounded-2xl p-6 shadow-md relative overflow-hidden">
+                <div class="relative z-10">
+                    <h3 class="text-2xl font-bold mb-2">🧘 Outil : Cohérence Cardiaque</h3>
+                    <p class="text-stone-300 mb-6 text-sm">Inspirez quand le cercle grandit, expirez quand il rétrécit. (5 sec / 5 sec). À faire allongé.</p>
+                    
+                    <div class="flex justify-center mb-4">
+                        <canvas id="breathingCanvas" width="200" height="200"></canvas>
+                    </div>
+                    
+                    <div class="text-center">
+                        <button id="toggleBreathing" class="bg-amber-600 hover:bg-amber-500 text-white font-bold py-2 px-6 rounded-full transition shadow-lg">
+                            Démarrer
+                        </button>
+                        <p id="breathStatus" class="mt-4 text-xl font-medium text-amber-400 h-8">Prêt ?</p>
+                    </div>
+                </div>
+                <!-- Decorative background element -->
+                <div class="absolute top-0 right-0 w-32 h-32 bg-stone-700 rounded-full opacity-20 -mr-10 -mt-10"></div>
+            </section>
+        </div>
+
+        <footer class="text-center text-stone-400 text-sm py-8 border-t border-stone-200 mt-8">
+            <p>Ce guide est un support d'accompagnement. Consultez toujours votre médecin pour les dosages et traitements.</p>
+            <p class="mt-2">Basé sur le Guide de Gestion du Cortisol et du SED.</p>
+        </footer>
+
+    </main>
+
+    <script>
+        // --- 1. Symptom Checker Logic ---
+        const btnExcess = document.getElementById('btn-excess');
+        const btnCrash = document.getElementById('btn-crash');
+        const checkupResult = document.getElementById('checkup-result');
+        const resultTitle = document.getElementById('result-title');
+        const resultContent = document.getElementById('result-content');
+
+        const advice = {
+            excess: {
+                title: "Stratégie : Calmer le Jeu",
+                content: `
+                    <ul class="list-disc pl-5 space-y-2">
+                        <li><strong>Cohérence Cardiaque :</strong> Immédiatement, 5 minutes.</li>
+                        <li><strong>Obscurité :</strong> Coupez les stimulations sensorielles.</li>
+                        <li><strong>Magnésium :</strong> Prenez une dose pour détendre les muscles.</li>
+                        <li><em>Ne forcez pas pour dormir, essayez juste de relâcher les muscles un par un.</em></li>
+                    </ul>
+                `,
+                color: "border-amber-500",
+                textColor: "text-amber-700"
+            },
+            crash: {
+                title: "Stratégie : Remonter la Pente",
+                content: `
+                    <ul class="list-disc pl-5 space-y-2">
+                        <li><strong>Repos Total :</strong> Allongez-vous immédiatement.</li>
+                        <li><strong>Hydratation Salée :</strong> Eau + Sel pour remonter la tension.</li>
+                        <li><strong>Vitamine C :</strong> Pour soutenir les surrénales.</li>
+                        <li><strong>Chaleur :</strong> Bouillotte ou couverture (si vous avez froid).</li>
+                    </ul>
+                `,
+                color: "border-blue-500",
+                textColor: "text-blue-700"
+            }
+        };
+
+        function showAdvice(type) {
+            checkupResult.classList.remove('hidden');
+            
+            // Reset highlighting
+            btnExcess.classList.remove('ring-2', 'ring-amber-400', 'bg-amber-50');
+            btnCrash.classList.remove('ring-2', 'ring-blue-400', 'bg-blue-50');
+
+            if (type === 'excess') {
+                btnExcess.classList.add('ring-2', 'ring-amber-400', 'bg-amber-50');
+                resultTitle.textContent = advice.excess.title;
+                resultTitle.className = `text-xl font-bold mb-3 ${advice.excess.textColor}`;
+                checkupResult.className = `bg-white rounded-xl p-6 shadow-sm border-l-4 ${advice.excess.color} fade-in`;
+                resultContent.innerHTML = advice.excess.content;
+            } else {
+                btnCrash.classList.add('ring-2', 'ring-blue-400', 'bg-blue-50');
+                resultTitle.textContent = advice.crash.title;
+                resultTitle.className = `text-xl font-bold mb-3 ${advice.crash.textColor}`;
+                checkupResult.className = `bg-white rounded-xl p-6 shadow-sm border-l-4 ${advice.crash.color} fade-in`;
+                resultContent.innerHTML = advice.crash.content;
+            }
+        }
+
+        btnExcess.addEventListener('click', () => showAdvice('excess'));
+        btnCrash.addEventListener('click', () => showAdvice('crash'));
+
+
+        // --- 2. Tab Navigation Logic ---
+        const tabs = document.querySelectorAll('.tab-btn');
+        const contents = document.querySelectorAll('.tab-content');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Remove active class from all tabs
+                tabs.forEach(t => t.classList.remove('active-tab', 'border-b-2', 'border-amber-600', 'text-amber-600', 'font-bold'));
+                tabs.forEach(t => t.classList.add('text-stone-500'));
+                
+                // Add active class to clicked tab
+                tab.classList.add('active-tab');
+                tab.classList.remove('text-stone-500');
+
+                // Hide all contents
+                contents.forEach(c => c.classList.add('hidden'));
+
+                // Show target content
+                const targetId = 'content-' + tab.getAttribute('data-target');
+                document.getElementById(targetId).classList.remove('hidden');
+            });
+        });
+
+
+        // --- 3. Chart.js Visualization ---
+        // Goal: Visualize "Tired but Wired" vs Healthy Curve to explain the "Checkup" section context
+        const ctx = document.getElementById('cortisolChart').getContext('2d');
+        const cortisolChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['06h', '09h', '12h', '15h', '18h', '21h', '00h'],
+                datasets: [
+                    {
+                        label: 'Cortisol Idéal',
+                        data: [10, 20, 15, 10, 6, 3, 2], // High morning, steady drop
+                        borderColor: 'rgb(59, 130, 246)', // Blue
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    },
+                    {
+                        label: 'Stress SED (Tired but Wired)',
+                        data: [5, 12, 8, 15, 18, 22, 15], // Low morning, spikes afternoon/night
+                        borderColor: 'rgb(220, 38, 38)', // Red
+                        backgroundColor: 'rgba(220, 38, 38, 0.05)',
+                        borderDash: [5, 5],
+                        tension: 0.4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.dataset.label === 'Cortisol Idéal') {
+                                    if(context.dataIndex === 1) return label + "Pic de réveil (Énergie)";
+                                    if(context.dataIndex === 5) return label + "Bas (Sommeil)";
+                                }
+                                if (context.dataset.label.includes('Stress')) {
+                                    if(context.dataIndex === 0) return label + "Réveil difficile";
+                                    if(context.dataIndex === 5) return label + "Impossible de dormir";
+                                }
+                                return label + context.raw;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        display: false, // Qualitative chart, no numbers needed
+                        title: { display: true, text: 'Niveau d\'Énergie' }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+
+
+        // --- 4. Breathing Canvas Tool (5-5-5 Coherence) ---
+        const canvas = document.getElementById('breathingCanvas');
+        const bCtx = canvas.getContext('2d');
+        const btnBreath = document.getElementById('toggleBreathing');
+        const statusText = document.getElementById('breathStatus');
+
+        let isBreathing = false;
+        let animationId;
+        let startTime;
+        const cycleDuration = 10000; // 10 seconds total (5 in, 5 out)
+        
+        function drawBreathing(timestamp) {
+            if (!startTime) startTime = timestamp;
+            const elapsed = timestamp - startTime;
+            const progress = (elapsed % cycleDuration) / cycleDuration;
+            
+            // Clear canvas
+            bCtx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const maxRadius = 80;
+            const minRadius = 30;
+            
+            let currentRadius;
+            let phase = "";
+
+            // 0 to 0.5 = Inhale (5s), 0.5 to 1.0 = Exhale (5s)
+            if (progress < 0.5) {
+                // Inhale (Expand)
+                // easeInOutSine for smoother breathing
+                const t = progress * 2; // Normalize to 0-1
+                const ease = -(Math.cos(Math.PI * t) - 1) / 2;
+                currentRadius = minRadius + (maxRadius - minRadius) * ease;
+                phase = "Inspirez... (Nez)";
+                statusText.className = "mt-4 text-xl font-medium text-amber-400";
+            } else {
+                // Exhale (Contract)
+                const t = (progress - 0.5) * 2;
+                const ease = -(Math.cos(Math.PI * t) - 1) / 2;
+                currentRadius = maxRadius - (maxRadius - minRadius) * ease;
+                phase = "Expire... (Bouche)";
+                statusText.className = "mt-4 text-xl font-medium text-blue-300";
+            }
+
+            statusText.textContent = phase;
+
+            // Draw Circle
+            bCtx.beginPath();
+            bCtx.arc(centerX, centerY, currentRadius, 0, 2 * Math.PI);
+            bCtx.fillStyle = progress < 0.5 ? '#f59e0b' : '#60a5fa'; // Amber to Blue
+            bCtx.fill();
+            
+            // Draw guiding ring
+            bCtx.beginPath();
+            bCtx.arc(centerX, centerY, maxRadius, 0, 2 * Math.PI);
+            bCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+            bCtx.lineWidth = 2;
+            bCtx.stroke();
+
+            if (isBreathing) {
+                animationId = requestAnimationFrame(drawBreathing);
+            }
+        }
+
+        // Initial Static Draw
+        bCtx.beginPath();
+        bCtx.arc(100, 100, 30, 0, 2 * Math.PI);
+        bCtx.fillStyle = '#44403c';
+        bCtx.fill();
+
+        btnBreath.addEventListener('click', () => {
+            if (isBreathing) {
+                isBreathing = false;
+                cancelAnimationFrame(animationId);
+                btnBreath.textContent = "Démarrer";
+                statusText.textContent = "Pause";
+                startTime = null;
+            } else {
+                isBreathing = true;
+                btnBreath.textContent = "Arrêter";
+                startTime = null; // Reset time
+                animationId = requestAnimationFrame(drawBreathing);
+            }
+        });
+
+    </script>
+</body>
+</html>
